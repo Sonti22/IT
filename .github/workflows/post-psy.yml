@@ -1,0 +1,51 @@
+name: Post Psychology
+
+on:
+  schedule:
+    # 06:00 и 16:00 UTC — это ~09:00 и ~19:00 по Москве.
+    - cron: '0 6 * * *'
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: post-psy
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run psy bot
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_PSY_CHANNEL_ID: ${{ secrets.TG_PSY_CHANNEL_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m src_psy.main
+
+      - name: Commit state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state_psy.json
+          if git diff --staged --quiet; then
+            echo "No state changes"
+          else
+            git commit -m "chore: update psy state [skip ci]"
+            git push
+          fi
