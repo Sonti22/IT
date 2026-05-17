@@ -10,7 +10,12 @@ from src.summarizer import summarize
 
 async def main() -> None:
     state = load_state()
-    new_items = fetch_new_items(state["posted_ids"])
+    try:
+        new_items = await fetch_new_items(state["posted_ids"])
+    except Exception as e:
+        print(f"[main] fetch failed entirely: {e}")
+        return
+
     if not new_items:
         print("[main] no new items")
         return
@@ -18,18 +23,20 @@ async def main() -> None:
     to_post = new_items[:MAX_POSTS_PER_RUN]
     print(f"[main] fetched {len(new_items)} new items, posting {len(to_post)}")
 
-    for item in to_post:
-        try:
-            summary = await summarize(item)
-            await publish(item, summary)
-            state["posted_ids"].append(item.id)
-            print(f"[main] posted: {item.title[:60]}")
-            await asyncio.sleep(2)
-        except Exception as e:
-            print(f"[main] FAILED on {item.title[:60]}: {e}")
-
-    save_state(state, max_history=MAX_STATE_HISTORY)
-    print("[main] state saved")
+    try:
+        for item in to_post:
+            try:
+                summary = await summarize(item)
+                await publish(item, summary)
+                state["posted_ids"].append(item.id)
+                save_state(state, max_history=MAX_STATE_HISTORY)
+                print(f"[main] posted: {item.title[:60]}")
+                await asyncio.sleep(2)
+            except Exception as e:
+                print(f"[main] FAILED on {item.title[:60]}: {e}")
+    finally:
+        save_state(state, max_history=MAX_STATE_HISTORY)
+        print("[main] state saved")
 
 
 if __name__ == "__main__":

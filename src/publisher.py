@@ -9,30 +9,34 @@ from aiogram.utils.text_decorations import html_decoration as html
 from src.fetcher import Item
 from src.summarizer import Summary
 
-MAX_MESSAGE_LEN = 4000
+MAX_TITLE = 120
+MAX_TLDR = 2500
+MAX_WHY = 400
+
+
+def _clip(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
 
 
 def format_post(item: Item, summary: Summary) -> str:
-    title = html.quote(summary.title)
-    tldr = html.quote(summary.tldr)
+    title = html.quote(_clip(summary.title, MAX_TITLE))
+    tldr = html.quote(_clip(summary.tldr, MAX_TLDR))
     link = html.quote(item.link)
     tag = item.tag
     emoji = item.emoji
 
     why_block = ""
     if summary.why:
-        why_block = f"\n\n💡 <i>Почему важно:</i> {html.quote(summary.why)}"
+        why_block = f"\n\n💡 <i>Почему важно:</i> {html.quote(_clip(summary.why, MAX_WHY))}"
 
-    text = (
+    return (
         f"{emoji} <b>{title}</b>\n\n"
         f"{tldr}"
         f"{why_block}\n\n"
         f"🔗 <a href=\"{link}\">читать оригинал</a> · {tag}"
     )
-
-    if len(text) > MAX_MESSAGE_LEN:
-        text = text[: MAX_MESSAGE_LEN - 3] + "..."
-    return text
 
 
 async def publish(item: Item, summary: Summary) -> None:
